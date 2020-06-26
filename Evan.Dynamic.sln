@@ -1,0 +1,22 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Evan.Dynamic", "Evan.Dynamic\Evan.Dynamic.csproj", "{70550D7D-CE02-49D0-B6C1-2DDF2DC60C87}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Evan.Dynamic.Test", "Evan.Dynamic.Test\Evan.Dynamic.Test.csproj", "{ED2758DD-FC79-4AAB-992A-3141F6AB3A43}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{70550D7D-CE02-49D0-B6C1-2DDF2DC60C87}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{70550D7D-CE02-49D0-B6C1-2DDF2DC60C87}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{70550D7D-CE02-49D0-B6C1-2DDF2DC60C87}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{70550D7D-CE02-49D0-B6C1-2DDF2DC60C87}.Release|Any CPU.Build.0 = Release|Any CPU
+		{ED2758DD-FC79-4AAB-992A-3141F6AB3A43}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{ED2758DD-FC79-4AAB-992A-3141F6AB3A43}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{ED2758DD-FC79-4AAB-992A-3141F6AB3A43}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{ED2758DD-FC79-4AAB-992A-3141F6AB3A43}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+EndGlobal
