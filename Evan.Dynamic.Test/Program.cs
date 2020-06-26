@@ -1,5 +1,7 @@
 ﻿using System;
+using System.Collections;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Threading.Tasks;
 using Evan.Dynamic.Attributes;
 
@@ -44,10 +46,57 @@ namespace Evan.Dynamic.Test
 
             await foreach (var v in (IAsyncEnumerable<int>)m.Run8())
                 Console.WriteLine($"Run8: {v}");
+
+            var console = (IConsole)m;
+            console.Write("Explicit interface method test\n");
+            console.WriteLine("Implicit interface method test");
+
+            var console2 = (IConsole2)m;
+            console2.Write("Explicit interface method test\n");
+            console2.WriteLine("Implicit interface method test");
         }
     }
 
-    public class TestModel
+    public interface IConsole
+    {
+        void Write(object o);
+
+        void WriteLine(object o);
+    }
+
+    public interface IConsole2
+    {
+        void Write(object o);
+
+        void WriteLine(object o);
+    }
+
+    public class TestModel4 : IConsole, IConsole2
+    {
+        private readonly TestModel _object;
+        
+        void IConsole.Write(object o)
+        {
+            ((IConsole)_object).Write(o);
+        }
+
+        void IConsole2.WriteLine(object o)
+        {
+            _object.WriteLine(o);
+        }
+
+        void IConsole2.Write(object o)
+        {
+            ((IConsole2)_object).Write(o);
+        }
+
+        void IConsole.WriteLine(object o)
+        {
+            _object.WriteLine(o);
+        }
+    }
+
+    public class TestModel : IConsole, IConsole2
     {
         [ProxyMethodName("run_proxy")]
         public void Run0<T>() where T : Program
@@ -131,6 +180,21 @@ namespace Evan.Dynamic.Test
         {
             await Task.Delay(0);
             yield return 8;
+        }
+
+        void IConsole.Write(object o)
+        {
+            Console.Write($"Console: {o}");
+        }
+
+        void IConsole2.Write(object o)
+        {
+            Console.Write($"Console2: {o}");
+        }
+
+        public void WriteLine(object o)
+        {
+            Console.WriteLine($"Console?: {o}");
         }
     }
 }

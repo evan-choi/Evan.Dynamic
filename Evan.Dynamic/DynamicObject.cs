@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using System.Reflection.Emit;
@@ -23,6 +24,13 @@ namespace Evan.Dynamic
             Type[] interfaces = { typeof(IObjectProxy<>).MakeGenericType(type) };
 
             var typeBuilder = DynamicModule.DefineType(typeName, TypeAttributes.Public, typeof(object), interfaces);
+
+            // class Type$Proxy : interfaces
+
+            foreach (var interfaceType in type.GetInterfaces())
+            {
+                typeBuilder.AddInterfaceImplementation(interfaceType);
+            }
 
             // class > T _object
             var objectField = typeBuilder.DefineField("_object", type, FieldAttributes.Private | FieldAttributes.InitOnly);
@@ -70,59 +78,117 @@ namespace Evan.Dynamic
 
         private static void DefineProxyMethods(TypeBuilder typeBuilder, TypeInfo type, FieldBuilder objectField)
         {
-            foreach (var method in type.DeclaredMethods)
+            MethodInfo[] declaredMethods = type.DeclaredMethods.ToArray();
+            IList<MethodInfo>[] interfaceMaps = null;
+
+            foreach (var interfaceMapping in type.GetInterfaces().Select(type.GetInterfaceMap))
             {
-                if (!method.IsPublic)
-                    continue;
-
-                var nameAttribute = method.GetCustomAttribute<ProxyMethodNameAttribute>();
-
-                var proxyMethodName = nameAttribute?.Name ?? method.Name;
-                var proxyMethod = typeBuilder.DefineMethod(proxyMethodName, MethodAttributes.Public);
-
-                if (method.IsGenericMethod)
+                for (int i = 0; i < interfaceMapping.TargetMethods.Length; i++)
                 {
-                    Type[] genericTypes = method.GetGenericArguments();
-                    string[] genericNames = genericTypes.Select(t => t.Name).ToArray();
-                    GenericTypeParameterBuilder[] genericParameters = proxyMethod.DefineGenericParameters(genericNames);
+                    interfaceMaps ??= new IList<MethodInfo>[declaredMethods.Length];
 
-                    for (int i = 0; i < genericNames.Length; i++)
+                    int index = Array.IndexOf(declaredMethods, interfaceMapping.TargetMethods[i]);
+                    IList<MethodInfo> targetInterfaceMethods = interfaceMaps[index];
+
+                    if (targetInterfaceMethods == null)
                     {
-                        var genericParameter = genericParameters[i];
-                        Type[] constraints = genericTypes[i].GetGenericParameterConstraints();
+                        targetInterfaceMethods = new List<MethodInfo>();
+                        interfaceMaps[index] = targetInterfaceMethods;
+                    }
 
-                        if (constraints.Length > 0)
-                        {
-                            genericParameter.SetInterfaceConstraints(constraints);
-                        }
+                    targetInterfaceMethods.Add(interfaceMapping.InterfaceMethods[i]);
+                }
+            }
+
+            for (int i = 0; i < declaredMethods.Length; i++)
+            {
+                var method = declaredMethods[i];
+                IList<MethodInfo> interfaceMap = interfaceMaps?[i];
+
+                if (interfaceMap?.Count > 0)
+                {
+                    foreach (var interfaceMethod in interfaceMap)
+                    {
+                        DefineProxyMethod(typeBuilder, type, objectField, method, interfaceMethod);
                     }
                 }
-
-                Type[] parameters = method.GetParameters()
-                    .Select(p => p.ParameterType)
-                    .ToArray();
-
-                proxyMethod.SetParameters(parameters);
-                proxyMethod.SetReturnType(method.ReturnType);
-
-                // body: return _object.METHOD(args..)
-                var il = proxyMethod.GetILGenerator();
-                il.Emit(OpCodes.Ldarg_0);
-                il.Emit(OpCodes.Ldfld, objectField);
-
-                for (int i = 0; i < parameters.Length; i++)
-                    il.Emit(OpCodes.Ldarg, i + 1);
-
-                il.EmitCall(method);
-
-                if (method.ReturnType != _void)
+                else
                 {
-                    var retValue = il.DeclareLocal(method.ReturnType);
-                    il.Emit(OpCodes.Stloc, retValue);
-                    il.Emit(OpCodes.Ldloc, retValue);
-                }
+                    if (!method.IsPublic)
+                        continue;
 
-                il.Emit(OpCodes.Ret);
+                    DefineProxyMethod(typeBuilder, type, objectField, method, null);
+                }
+            }
+        }
+
+        private static void DefineProxyMethod(TypeBuilder typeBuilder, TypeInfo type, FieldBuilder objectField, MethodInfo declaredMethod, MethodInfo interfaceMethod)
+        {
+            string proxyMethodName;
+            bool implExplicit = interfaceMethod != null;
+
+            if (implExplicit)
+            {
+                proxyMethodName = $"{interfaceMethod.DeclaringType!.FullName}.{interfaceMethod.Name}";
+            }
+            else
+            {
+                var nameAttribute = declaredMethod.GetCustomAttribute<ProxyMethodNameAttribute>();
+                proxyMethodName = nameAttribute?.Name ?? declaredMethod.Name;
+            }
+
+            var proxyMethodAttributes = implExplicit ?
+                MethodAttributes.Private | MethodAttributes.Virtual : MethodAttributes.Public;
+
+            var proxyMethod = typeBuilder.DefineMethod(proxyMethodName, proxyMethodAttributes);
+
+            if (declaredMethod.IsGenericMethod)
+            {
+                Type[] genericTypes = declaredMethod.GetGenericArguments();
+                string[] genericNames = genericTypes.Select(t => t.Name).ToArray();
+                GenericTypeParameterBuilder[] genericParameters = proxyMethod.DefineGenericParameters(genericNames);
+
+                for (int j = 0; j < genericNames.Length; j++)
+                {
+                    var genericParameter = genericParameters[j];
+                    Type[] constraints = genericTypes[j].GetGenericParameterConstraints();
+
+                    if (constraints.Length > 0)
+                    {
+                        genericParameter.SetInterfaceConstraints(constraints);
+                    }
+                }
+            }
+
+            Type[] parameters = declaredMethod.GetParameters()
+                .Select(p => p.ParameterType)
+                .ToArray();
+
+            proxyMethod.SetParameters(parameters);
+            proxyMethod.SetReturnType(declaredMethod.ReturnType);
+
+            // body: return _object.METHOD(args..)
+            var il = proxyMethod.GetILGenerator();
+            il.Emit(OpCodes.Ldarg_0);
+            il.Emit(OpCodes.Ldfld, objectField);
+
+            for (int j = 0; j < parameters.Length; j++)
+                il.Emit(OpCodes.Ldarg, j + 1);
+
+            il.EmitCall(implExplicit ? interfaceMethod : declaredMethod);
+
+            if (declaredMethod.ReturnType != _void)
+            {
+                var retValue = il.DeclareLocal(declaredMethod.ReturnType);
+                il.Emit(OpCodes.Stloc, retValue);
+                il.Emit(OpCodes.Ldloc, retValue);
+            }
+
+            il.Emit(OpCodes.Ret);
+
+            if (interfaceMethod != null)
+            {
+                typeBuilder.DefineMethodOverride(proxyMethod, interfaceMethod);
             }
         }
     }
