@@ -2,7 +2,7 @@
 
 ## DynamicObject
 
-## Basic Usage
+### Basic Usage
 ```cs
 var list = new List<int>();
 dynamic listProxy = DynamicObject.CreateProxy(list); // return IObjectProxy<List<int>>
