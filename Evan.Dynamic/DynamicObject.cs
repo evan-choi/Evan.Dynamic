@@ -14,21 +14,28 @@ namespace Evan.Dynamic
 
         public static IObjectProxy<T> CreateProxy<T>(T obj) where T : class
         {
-            var type = DefineProxyType(typeof(T));
-            return (IObjectProxy<T>)Activator.CreateInstance(type.CreateType(), obj);
+            var tType = typeof(T);
+
+            if (tType == typeof(object))
+                tType = obj.GetType();
+
+            string typeName = $"{tType.FullName}$Proxy";
+
+            if (!DynamicModule.TryGetType(typeName, out var type))
+                type = CreateProxyType(tType, typeName);
+
+            return (IObjectProxy<T>)Activator.CreateInstance(type, obj);
         }
 
-        private static TypeBuilder DefineProxyType(Type type)
+        private static Type CreateProxyType(Type type, string proxyTypeName)
         {
-            string typeName = $"{type.Name}$Proxy";
+            var typeBuilder = DynamicModule.DefineType(proxyTypeName, TypeAttributes.Public, typeof(object));
+
+            // class Type$Proxy : IObjectProxy<Type>
             var objectProxyInterfaceType = typeof(IObjectProxy<>).MakeGenericType(type);
-
-            var typeBuilder = DynamicModule.DefineType(typeName, TypeAttributes.Public, typeof(object));
-
-            // class Type$Proxy : IObjectProxy<Type>, interfaces..
-
             typeBuilder.AddInterfaceImplementation(objectProxyInterfaceType);
 
+            // class Type$Proxy : interfaces..
             foreach (var interfaceType in type.GetInterfaces())
             {
                 typeBuilder.AddInterfaceImplementation(interfaceType);
@@ -70,7 +77,7 @@ namespace Evan.Dynamic
             DefineProxyProperties(typeBuilder, typeInfo, objectField);
             DefineProxyMethods(typeBuilder, typeInfo, objectField);
 
-            return typeBuilder;
+            return typeBuilder.CreateType();
         }
 
         private static void DefineProxyProperties(TypeBuilder typeBuilder, TypeInfo type, FieldBuilder objectField)

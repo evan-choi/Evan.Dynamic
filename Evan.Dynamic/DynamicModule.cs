@@ -16,6 +16,12 @@ namespace Evan.Dynamic
             _module = assembly.DefineDynamicModule("DynamicModule");
         }
 
+        public static bool TryGetType(string name, out Type type)
+        {
+            type = _module.GetType(name);
+            return type != null;
+        }
+
         #region DefineType
         public static TypeBuilder DefineType(string name)
         {

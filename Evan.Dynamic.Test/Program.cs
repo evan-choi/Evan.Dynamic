@@ -14,6 +14,7 @@ namespace Evan.Dynamic.Test
             var p = new Program();
 
             dynamic tm2 = DynamicObject.CreateProxy(new TestModel2());
+            dynamic tm3 = DynamicObject.CreateProxy(new TestModel2());
 
             dynamic m = DynamicObject.CreateProxy(new TestModel());
             var proxyType = (Type)m.GetType();
