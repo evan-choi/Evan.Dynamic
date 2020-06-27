@@ -10,7 +10,7 @@ namespace Evan.Dynamic
 {
     public static class DynamicObject
     {
-        private static readonly Type _void = typeof(void);
+        private const BindingFlags allInstances = BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public;
 
         public static IObjectProxy<T> CreateProxy<T>(T obj) where T : class
         {
@@ -28,7 +28,7 @@ namespace Evan.Dynamic
             // class Type$Proxy : IObjectProxy<Type>, interfaces..
 
             typeBuilder.AddInterfaceImplementation(objectProxyInterfaceType);
-            
+
             foreach (var interfaceType in type.GetInterfaces())
             {
                 typeBuilder.AddInterfaceImplementation(interfaceType);
@@ -80,7 +80,7 @@ namespace Evan.Dynamic
 
         private static void DefineProxyMethods(TypeBuilder typeBuilder, TypeInfo type, FieldBuilder objectField)
         {
-            MethodInfo[] declaredMethods = type.DeclaredMethods.ToArray();
+            MethodInfo[] declaredMethods = type.GetMethods(allInstances).ToArray();
             IList<MethodInfo>[] interfaceMaps = null;
 
             foreach (var interfaceMapping in type.GetInterfaces().Select(type.GetInterfaceMap))
@@ -116,7 +116,7 @@ namespace Evan.Dynamic
                 }
                 else
                 {
-                    if (!method.IsPublic)
+                    if (!method.IsPublic || method.DeclaringType == typeof(object))
                         continue;
 
                     DefineProxyMethod(typeBuilder, type, objectField, method, null);
@@ -127,7 +127,7 @@ namespace Evan.Dynamic
         private static void DefineProxyMethod(TypeBuilder typeBuilder, TypeInfo type, FieldBuilder objectField, MethodInfo declaredMethod, MethodInfo interfaceMethod)
         {
             string proxyMethodName;
-            bool implExplicit = interfaceMethod != null;
+            bool implExplicit = interfaceMethod != null && !declaredMethod.IsPublic;
 
             if (implExplicit)
             {
@@ -135,12 +135,13 @@ namespace Evan.Dynamic
             }
             else
             {
-                var nameAttribute = declaredMethod.GetCustomAttribute<ProxyMethodNameAttribute>();
+                var nameAttribute = declaredMethod.GetCustomAttribute<ProxyNameAttribute>();
                 proxyMethodName = nameAttribute?.Name ?? declaredMethod.Name;
             }
 
             var proxyMethodAttributes = implExplicit ?
-                MethodAttributes.Private | MethodAttributes.Virtual : MethodAttributes.Public;
+                MethodAttributes.Private | MethodAttributes.Virtual :
+                declaredMethod.Attributes;
 
             var proxyMethod = typeBuilder.DefineMethod(proxyMethodName, proxyMethodAttributes);
 
@@ -179,7 +180,7 @@ namespace Evan.Dynamic
 
             il.EmitCall(implExplicit ? interfaceMethod : declaredMethod);
 
-            if (declaredMethod.ReturnType != _void)
+            if (declaredMethod.ReturnType != typeof(void))
             {
                 var retValue = il.DeclareLocal(declaredMethod.ReturnType);
                 il.Emit(OpCodes.Stloc, retValue);

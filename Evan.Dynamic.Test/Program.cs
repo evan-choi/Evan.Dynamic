@@ -1,7 +1,5 @@
 ﻿using System;
-using System.Collections;
 using System.Collections.Generic;
-using System.ComponentModel;
 using System.Threading.Tasks;
 using Evan.Dynamic.Attributes;
 
@@ -9,9 +7,13 @@ namespace Evan.Dynamic.Test
 {
     public class Program
     {
+        public static int N => 2;
+
         public static async Task Main()
         {
             var p = new Program();
+
+            dynamic tm2 = DynamicObject.CreateProxy(new TestModel2());
 
             dynamic m = DynamicObject.CreateProxy(new TestModel());
             var proxyType = (Type)m.GetType();
@@ -57,6 +59,11 @@ namespace Evan.Dynamic.Test
         }
     }
 
+    public interface IObject
+    {
+        //string ToString();
+    }
+
     public interface IConsole
     {
         void Write(object o);
@@ -74,7 +81,7 @@ namespace Evan.Dynamic.Test
     public class TestModel4 : IConsole, IConsole2
     {
         private readonly TestModel _object;
-        
+
         void IConsole.Write(object o)
         {
             ((IConsole)_object).Write(o);
@@ -96,13 +103,19 @@ namespace Evan.Dynamic.Test
         }
     }
 
-    public class TestModel : IConsole, IConsole2
+    public class TestModel2 : TestModel, IObject
     {
-        [ProxyMethodName("run_proxy")]
+    }
+
+    public class TestModel : IConsole, IConsole2, IObject
+    {
+        [ProxyName("run_proxy")]
         public void Run0<T>() where T : Program
         {
             Console.WriteLine(typeof(T));
         }
+
+        public override string ToString() => "I'm TestModel";
 
         public T Run0_1<T>()
         {

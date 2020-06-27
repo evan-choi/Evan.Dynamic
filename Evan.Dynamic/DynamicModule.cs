@@ -11,7 +11,7 @@ namespace Evan.Dynamic
         static DynamicModule()
         {
             var assemblyName = new AssemblyName("Evan.Dynamic");
-            var assembly = AssemblyBuilder.DefineDynamicAssembly(assemblyName, AssemblyBuilderAccess.Run);
+            var assembly = AssemblyBuilder.DefineDynamicAssembly(assemblyName, AssemblyBuilderAccess.RunAndCollect);
 
             _module = assembly.DefineDynamicModule("DynamicModule");
         }
