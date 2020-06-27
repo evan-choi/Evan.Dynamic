@@ -10,7 +10,8 @@ namespace Evan.Dynamic
 {
     public static class DynamicObject
     {
-        private const BindingFlags allInstances = BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public;
+        private const BindingFlags allInstance = BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public;
+        private const BindingFlags publicInstance = BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public;
 
         public static IObjectProxy<T> CreateProxy<T>(T obj) where T : class
         {
@@ -45,7 +46,7 @@ namespace Evan.Dynamic
             var objectField = typeBuilder.DefineField("_object", type, FieldAttributes.Private | FieldAttributes.InitOnly);
 
             // class > IObjectProxy<T>.Object::get_Object
-            var getObjectMethod = objectProxyInterfaceType.GetMethod("get_Object", BindingFlags.Public | BindingFlags.Instance);
+            var getObjectMethod = objectProxyInterfaceType.GetMethod("get_Object", publicInstance);
 
             var getObjectImplMethod = typeBuilder.DefineMethod(
                 $"IObjectProxy<{type.FullName}>.get_Object",
@@ -87,7 +88,7 @@ namespace Evan.Dynamic
 
         private static void DefineProxyMethods(TypeBuilder typeBuilder, TypeInfo type, FieldBuilder objectField)
         {
-            MethodInfo[] declaredMethods = type.GetMethods(allInstances).ToArray();
+            MethodInfo[] declaredMethods = type.GetMethods(allInstance).ToArray();
             IList<MethodInfo>[] interfaceMaps = null;
 
             foreach (var interfaceMapping in type.GetInterfaces().Select(type.GetInterfaceMap))
