@@ -21,12 +21,14 @@ namespace Evan.Dynamic
         private static TypeBuilder DefineProxyType(Type type)
         {
             string typeName = $"{type.Name}$Proxy";
-            Type[] interfaces = { typeof(IObjectProxy<>).MakeGenericType(type) };
+            var objectProxyInterfaceType = typeof(IObjectProxy<>).MakeGenericType(type);
 
-            var typeBuilder = DynamicModule.DefineType(typeName, TypeAttributes.Public, typeof(object), interfaces);
+            var typeBuilder = DynamicModule.DefineType(typeName, TypeAttributes.Public, typeof(object));
 
-            // class Type$Proxy : interfaces
+            // class Type$Proxy : IObjectProxy<Type>, interfaces..
 
+            typeBuilder.AddInterfaceImplementation(objectProxyInterfaceType);
+            
             foreach (var interfaceType in type.GetInterfaces())
             {
                 typeBuilder.AddInterfaceImplementation(interfaceType);
@@ -36,7 +38,7 @@ namespace Evan.Dynamic
             var objectField = typeBuilder.DefineField("_object", type, FieldAttributes.Private | FieldAttributes.InitOnly);
 
             // class > IObjectProxy<T>.Object::get_Object
-            var getObjectMethod = interfaces[0].GetMethod("get_Object", BindingFlags.Public | BindingFlags.Instance);
+            var getObjectMethod = objectProxyInterfaceType.GetMethod("get_Object", BindingFlags.Public | BindingFlags.Instance);
 
             var getObjectImplMethod = typeBuilder.DefineMethod(
                 $"IObjectProxy<{type.FullName}>.get_Object",
